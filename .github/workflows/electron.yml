@@ -41,9 +41,9 @@ jobs:
             windows|all)
               add '"platform":"windows","os":"windows-latest","qt-host":"windows","qt-target":"desktop","qt-arch":"win64_msvc2022_64","qt-dir":"msvc2022_64","eb-flag":"win"' ;;
             linux|all)
-              add '"platform":"linux","os":"ubuntu-24.04","qt-host":"linux","qt-target":"desktop","qt-arch":"gcc_64","qt-dir":"gcc_64","eb-flag":"linux"' ;;
+              add '"platform":"linux","os":"ubuntu-24.04","qt-host":"linux","qt-target":"desktop","qt-arch":"linux_gcc_64","qt-dir":"gcc_64","eb-flag":"linux"' ;;
             macos|all)
-              add '"platform":"macos","os":"macos-latest","qt-host":"mac","qt-target":"desktop","qt-arch":"macos","qt-dir":"macos","eb-flag":"mac"' ;;
+              add '"platform":"macos","os":"macos-13","qt-host":"mac","qt-target":"desktop","qt-arch":"clang_64","qt-dir":"clang_64","eb-flag":"mac"' ;;
           esac
           echo "matrix={\"include\":[$entries]}" >> "$GITHUB_OUTPUT"
 
@@ -60,7 +60,7 @@ jobs:
       - name: Install Qt 6.8
         uses: jurplel/install-qt-action@v3
         with:
-          version: '6.8.0'
+          version: '6.8.3'
           host: ${{ matrix.qt-host }}
           target: ${{ matrix.qt-target }}
           arch: ${{ matrix.qt-arch }}
@@ -69,12 +69,15 @@ jobs:
       - name: Locate Qt prefix
         shell: bash
         run: |
-          for candidate in "$HOME/Qt/6.8.0/${{ matrix.qt-dir }}" \
-                           "$RUNNER_TEMP/Qt/6.8.0/${{ matrix.qt-dir }}" \
-                           "C:/Qt/6.8.0/${{ matrix.qt-dir }}"; do
-            if [ -d "$candidate" ]; then
-              echo "QT_PREFIX=$candidate" >> "$GITHUB_ENV"
-              echo "Found Qt at $candidate"
+          # aqt output dir naming varies by arch/host; glob for the real prefix.
+          for candidate in "$HOME"/Qt/6.8.3/*/ "$RUNNER_TEMP"/Qt/6.8.3/*/ \
+                           "C:/Qt/6.8.3/"*/ ; do
+            [ -d "$candidate" ] || continue
+            if [ -e "$candidate/bin/qmake" ] || [ -e "$candidate/bin/qmake6" ] \
+               || [ -e "$candidate/bin/qmake.exe" ] || [ -e "$candidate/bin/qmake6.exe" ] \
+               || [ -d "$candidate/lib/cmake/Qt6" ]; then
+              echo "QT_PREFIX=${candidate%/}" >> "$GITHUB_ENV"
+              echo "Found Qt at ${candidate%/}"
               exit 0
             fi
           done
