@@ -73,9 +73,12 @@ PLUGIN_SEARCH_ROOTS=(
   /usr/lib/x86_64-linux-gnu/qt6/plugins
   /usr/lib64/qt6/plugins
 )
-for base in "$HOME"/Qt/*/*/plugins /opt/Qt/*/*/plugins /usr/local/Qt/*/*/plugins; do
+for base in "$HOME"/Qt/*/*/plugins /opt/Qt/*/*/plugins /usr/local/Qt/*/*/plugins \
+            "${GITHUB_WORKSPACE:-/nonexistent}"/../Qt/*/*/plugins; do
   [[ -d "$base" ]] && PLUGIN_SEARCH_ROOTS+=("$base")
 done
+# CI sets QT_PLUGIN_PATH to the active Qt's plugins dir.
+[[ -n "${QT_PLUGIN_PATH:-}" && -d "$QT_PLUGIN_PATH" ]] && PLUGIN_SEARCH_ROOTS+=("$QT_PLUGIN_PATH")
 
 for plugindir in "${PLUGIN_SEARCH_ROOTS[@]}"; do
   [[ -d "$plugindir" ]] || continue

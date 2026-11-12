@@ -69,8 +69,10 @@ jobs:
       - name: Locate Qt prefix
         shell: bash
         run: |
-          # aqt output dir naming varies by arch/host; glob for the real prefix.
-          for candidate in "$HOME"/Qt/6.8.3/*/ "$RUNNER_TEMP"/Qt/6.8.3/*/ \
+          # install-qt-action installs to a sibling of the workspace checkout
+          # ($GITHUB_WORKSPACE/../Qt); also probe the usual aqt locations.
+          for candidate in "$GITHUB_WORKSPACE"/../Qt/6.8.3/*/ \
+                           "$HOME"/Qt/6.8.3/*/ "$RUNNER_TEMP"/Qt/6.8.3/*/ \
                            "C:/Qt/6.8.3/"*/ ; do
             [ -d "$candidate" ] || continue
             if [ -e "$candidate/bin/qmake" ] || [ -e "$candidate/bin/qmake6" ] \
