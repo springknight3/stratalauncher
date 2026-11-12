@@ -1,0 +1,256 @@
+# SPDX-License-Identifier: GPL-3.0-only
+name: Verify Electron
+
+# A new dispatch supersedes any in-progress one: stale builds are cancelled
+# before they can overwrite newer nightly assets.
+concurrency:
+  group: electron-verify-${{ inputs.platform }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Target platform(s) to build and verify'
+        required: true
+        default: 'linux'
+        type: choice
+        options:
+          - windows
+          - linux
+          - macos
+          - all
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            os: windows-latest
+            qt-host: windows
+            qt-target: desktop
+            qt-arch: win64_msvc2022_64
+            qt-dir: msvc2022_64
+            eb-flag: win
+          - platform: linux
+            os: ubuntu-24.04
+            qt-host: linux
+            qt-target: desktop
+            qt-arch: gcc_64
+            qt-dir: gcc_64
+            eb-flag: linux
+          - platform: macos
+            os: macos-latest
+            qt-host: mac
+            qt-target: desktop
+            qt-arch: macos
+            qt-dir: macos
+            eb-flag: mac
+    runs-on: ${{ matrix.os }}
+    if: inputs.platform == 'all' || inputs.platform == matrix.platform
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6.8
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.8.0'
+          host: ${{ matrix.qt-host }}
+          target: ${{ matrix.qt-target }}
+          arch: ${{ matrix.qt-arch }}
+          cache: true
+
+      - name: Locate Qt prefix
+        shell: bash
+        run: |
+          for candidate in "$HOME/Qt/6.8.0/${{ matrix.qt-dir }}" \
+                           "$RUNNER_TEMP/Qt/6.8.0/${{ matrix.qt-dir }}" \
+                           "C:/Qt/6.8.0/${{ matrix.qt-dir }}"; do
+            if [ -d "$candidate" ]; then
+              echo "QT_PREFIX=$candidate" >> "$GITHUB_ENV"
+              echo "Found Qt at $candidate"
+              exit 0
+            fi
+          done
+          # Fallback: ask qmake where it lives.
+          QMAKE_BIN="$(find "$HOME/Qt" /c/Qt 'C:\Qt' -name 'qmake*' -type f 2>/dev/null | head -1)"
+          if [ -n "$QMAKE_BIN" ]; then
+            QTROOT="$("$QMAKE_BIN" -query QT_INSTALL_PREFIX 2>/dev/null || true)"
+            if [ -n "$QTROOT" ]; then
+              echo "QT_PREFIX=$QTROOT" >> "$GITHUB_ENV"
+              echo "Found Qt via qmake at $QTROOT"
+              exit 0
+            fi
+          fi
+          echo "Could not locate Qt install prefix" >&2
+          exit 1
+
+      - name: Install build tools (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build \
+            libarchive-dev zlib1g-dev libsecret-1-dev
+
+      - name: Install build tools (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          choco install ninja cmake --no-progress -y
+
+      - name: Setup MSVC (Windows)
+        if: matrix.platform == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Setup Ninja (Windows)
+        if: matrix.platform == 'windows'
+        uses: ashutoshvarma/setup-ninja@v1
+
+      - name: Add Qt tools to PATH
+        shell: bash
+        run: |
+          for candidate in "$QT_PREFIX/bin" "$QT_PREFIX/bin64"; do
+            if [ -d "$candidate" ]; then
+              echo "$candidate" >> "$GITHUB_PATH"
+              echo "Added $candidate to PATH"
+            fi
+          done
+
+      - name: Build QtKeychain
+        shell: bash
+        run: |
+          ./scripts/build-qtkeychain.sh "$RUNNER_TEMP/keychain-work" "$RUNNER_TEMP/keychain-prefix"
+          echo "KEYCHAIN_PREFIX=$RUNNER_TEMP/keychain-prefix" >> "$GITHUB_ENV"
+
+      - name: Configure core (release)
+        shell: bash
+        run: >
+          cmake --preset release
+          -DCMAKE_PREFIX_PATH="$QT_PREFIX;$KEYCHAIN_PREFIX;$KEYCHAIN_PREFIX/ecm"
+        env:
+          KEYCHAIN_PREFIX: ${{ env.KEYCHAIN_PREFIX }}
+
+      - name: Build core and tests (release)
+        run: cmake --build --preset release -j"$(nproc 2>/dev/null || echo 4)"
+
+      - name: Run core tests
+        run: ctest --test-dir build/qt-release --output-on-failure
+
+      - name: Assemble core bundle (Linux/macOS)
+        if: matrix.platform != 'windows'
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "macos" ]; then
+            ./scripts/deploy-core-bundle-mac.sh
+          else
+            ./scripts/deploy-core-bundle.sh
+          fi
+
+      - name: Assemble core bundle (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: ./scripts/deploy-core-bundle.ps1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install renderer dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Typecheck and test renderer
+        working-directory: electron
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build renderer
+        working-directory: electron
+        run: npm run build
+
+      - name: Package with electron-builder
+        working-directory: electron
+        run: npx electron-builder --${{ matrix.eb-flag }}
+
+      - name: Smoke test bundled core (STRATA_READY handshake)
+        shell: bash
+        run: |
+          BIN="dist/strata-core-bundle/strata-core"
+          [ "${{ matrix.platform }}" = "windows" ] && BIN="$BIN.exe"
+          OUT="$(timeout 15 ./"$BIN" serve --port 0 --token ci-smoke 2>/dev/null | head -1)"
+          echo "$OUT"
+          echo "$OUT" | grep -q 'STRATA_READY {"port":[0-9]*,"token":"ci-smoke"}'
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stratalauncher-${{ matrix.platform }}
+          path: |
+            dist/electron/*.AppImage
+            dist/electron/*.tar.gz
+            dist/electron/*.exe
+            dist/electron/*.dmg
+            dist/electron/*.zip
+            dist/electron/*.yml
+          if-no-files-found: error
+
+  publish:
+    name: Publish nightly release
+    needs: package
+    # Only publish when every selected platform leg succeeded — a failed or
+    # cancelled build never touches the rolling release.
+    if: ${{ needs.package.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: stratalauncher-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Normalize asset names
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          shopt -s nullglob
+          for f in artifacts/*; do
+            b="$(basename "$f")"
+            case "$b" in *.yml|*.yaml) continue ;; esac
+            # Filenames look like StrataLauncher-<version>-<platform>-<arch>.<ext>
+            rest="${b#StrataLauncher-}"; rest="${rest#*-}"
+            name_noext="${rest%.*}"; ext="${rest##*.}"
+            platform="${name_noext%-*}"; arch="${name_noext##*-}"
+            case "$arch" in x64) arch="x86_64" ;; esac
+            case "$platform" in
+              macos) platform="macOS" ;;
+            esac
+            out="StrataLauncher-${platform}-${arch}.${ext}"
+            if [ "$platform" = "windows" ] && [ "$ext" = "exe" ]; then
+              out="StrataLauncher-${platform}-${arch}-setup.${ext}"
+            fi
+            cp "$f" "release-assets/$out"
+            echo "asset: $out"
+          done
+          ls -la release-assets
+
+      - name: Publish rolling nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag=nightly
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --prerelease --title "Nightly" \
+              --notes "Automated build from commit ${GITHUB_SHA:0:7} via \`electron.yml\`. Assets are overwritten by each successful run."
+          fi
+          gh release upload "$tag" release-assets/* --clobber
+          gh release view "$tag" --json url --jq .url

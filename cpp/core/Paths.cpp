@@ -5,8 +5,27 @@
 
 namespace strata
 {
+    namespace
+    {
+        QString g_dataDirectoryOverride;
+    }
+
+    void Paths::setDataDirectoryOverride(const QString& directory)
+    {
+        g_dataDirectoryOverride = QDir::cleanPath(directory);
+    }
+
+    QString Paths::dataDirectoryOverride()
+    {
+        return g_dataDirectoryOverride;
+    }
+
     QString Paths::dataDirectory()
     {
+        if (!g_dataDirectoryOverride.isEmpty())
+        {
+            return g_dataDirectoryOverride;
+        }
 #if defined(Q_OS_WIN)
         constexpr auto operatingSystem = OperatingSystem::Windows;
 #elif defined(Q_OS_MACOS)

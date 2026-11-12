@@ -48,8 +48,8 @@ Status is `todo`, `in progress`, or `done`; mark a class done only after its pha
 
 | Java class | Planned C++ class | Status | Responsibility |
 |---|---|---|---|
-| `net.stratalauncher.App` | `cpp/app/AppBootstrap` | todo | app lifecycle, startup, and window bootstrap |
-| `net.stratalauncher.LauncherBootstrap` | `cpp/app/LauncherBootstrap` | todo | Java entrypoint replacement and CLI bootstrap |
+| `net.stratalauncher.App` | `electron/main/index.ts` + `cpp/app/main.cpp` (`serve`) | done | app lifecycle: Electron window + headless core daemon bootstrap |
+| `net.stratalauncher.LauncherBootstrap` | `cpp/app/main.cpp` + `electron/main/index.ts` | done | entrypoint replacement: `strata-core serve` daemon spawned by Electron main |
 | `net.stratalauncher.core.auth.Account` | `cpp/core/auth/Account` | done | persisted Microsoft/offline account records and launch profiles |
 | `net.stratalauncher.core.auth.AccountManager` | `cpp/core/auth/AccountManager` | done | atomic account metadata, active selection, and token refresh |
 | `net.stratalauncher.core.auth.CredentialStore` | `cpp/core/auth/CredentialStore` | done | credential abstraction and QtKeychain-backed secret storage |
@@ -79,38 +79,38 @@ Status is `todo`, `in progress`, or `done`; mark a class done only after its pha
 | `net.stratalauncher.core.modrinth.ModrinthClient` | `cpp/core/modrinth/ModrinthClient` | done | bounded Modrinth search/version API and strict metadata/download validation |
 | `net.stratalauncher.core.modrinth.ServerContentType` | `cpp/core/modrinth/ContentType::ServerContentType` | done | server-side Modrinth project categories |
 | `net.stratalauncher.core.mojang.MojangManifestClient` | `cpp/core/mojang/MojangManifestClient` | done | Mojang version manifest parsing, cache, and offline fallback |
-| `net.stratalauncher.core.runtime.ExternalJavaRuntimeInstaller` | `cpp/core/runtime/JavaRuntimeManager` | in progress | Temurin/Zulu package discovery, checksum verification where published, staged extraction |
-| `net.stratalauncher.core.runtime.JavaRuntimeManager` | `cpp/core/runtime/JavaRuntimeManager` | in progress | Mojang runtime metadata, installation, inventory, selection, and deletion safeguards |
+| `net.stratalauncher.core.runtime.ExternalJavaRuntimeInstaller` | `cpp/core/runtime/JavaRuntimeManager` | done | Temurin/Zulu package discovery, checksum verification where published, staged extraction |
+| `net.stratalauncher.core.runtime.JavaRuntimeManager` | `cpp/core/runtime/JavaRuntimeManager` | done | Mojang runtime metadata, installation, inventory, selection, and deletion safeguards |
 | `net.stratalauncher.core.server.DevServerManager` | `cpp/core/server/DevServerManager` | done | server creation, installation, launch, inventory, and lifecycle |
 | `net.stratalauncher.core.server.ServerDistribution` | `cpp/core/server/ServerDistribution` | done | Vanilla, Paper, and Fabric distribution metadata and install plans |
-| `net.stratalauncher.core.server.ServerModrinthManager` | `cpp/core/server/ServerModrinthManager` | todo | mod/plugin management for server content |
+| `net.stratalauncher.core.server.ServerModrinthManager` | `cpp/core/controllers/content/ContentController` + `LauncherController` server-content methods | done | mod/plugin management for server content (consolidated into ContentController, like loaders) |
 | `net.stratalauncher.core.settings.InstanceSettings` | `cpp/core/settings/InstanceSettings` | done | instance settings and legacy JSON compatibility |
 | `net.stratalauncher.core.settings.MinecraftControls` | `cpp/core/settings/MinecraftControls` | done | default bindings, key labels, and conflict detection; interactive key capture remains a known gap |
 | `net.stratalauncher.core.settings.MinecraftOptionValues` | `cpp/core/settings/MinecraftOptionValues` | done | version-aware FOV display/storage conversion |
 | `net.stratalauncher.core.settings.NbtFile` | `cpp/core/settings/NbtFile` | done | bounded NBT read/write, gzip compatibility, atomic replacement |
 | `net.stratalauncher.core.settings.OptionsParser` | `cpp/core/settings/OptionsFile` | done | lossless `options.txt` parsing and atomic updates |
 | `net.stratalauncher.core.settings.ServerListStore` | `cpp/core/settings/ServerListStore` | done | `servers.dat` CRUD, unknown-tag preservation, and compression migration |
-| `net.stratalauncher.ui.AnimationBenchmark` | `cpp/ui/AnimationBenchmark` | todo | UI benchmark harness used for frame cost measurements |
-| `net.stratalauncher.ui.ButtonMotion` | `cpp/app/MainWindow.qml` | done | button and instance-card hover/click motion |
-| `net.stratalauncher.ui.PageTransition` | `cpp/app/MainWindow.qml`, `cpp/app/Motion.qml` | done | page-switch fade and horizontal movement |
-| `net.stratalauncher.ui.FlyoutManager` | `cpp/ui/FlyoutManager` | todo | reusable overlay/flyout manager and toast queue |
-| `net.stratalauncher.ui.FrameTimeOverlay` | `cpp/app/FrameTimeOverlay.qml` | done | frame-swap timing statistics and debug overlay |
-| `net.stratalauncher.ui.IconAssets` | `cpp/app/ThemeAwareIcon.qml`, `cpp/app/resources.qrc` | done | bundled SVG lookup and correct theme/color pairing |
-| `net.stratalauncher.ui.MainLayout` | `cpp/app/MainWindow.qml` | done | shell, navigation, Home/About, and window state |
-| `net.stratalauncher.ui.MotionConstants` | `cpp/app/Motion.qml` | done | centralized motion durations, curves, and reduce-motion behavior |
-| `net.stratalauncher.ui.StartupOverlay` | `cpp/app/MainWindow.qml` | done | animated splash, warning, copyright, and initialization wait |
-| `net.stratalauncher.ui.ThemeManager` | `cpp/core/ThemeSettings.*`, `cpp/app/Theme.qml` | done | persisted appearance settings and shared radius tokens |
-| `net.stratalauncher.ui.ToggleSwitchStyle` | `cpp/app/StrataSwitch.qml` | done | custom switch track, thumb, label placement, and motion |
-| `net.stratalauncher.ui.UiTypography` | `cpp/app/main.cpp`, `cpp/app/assets/fonts/` | done | bundled font loading and application typography |
-| `net.stratalauncher.ui.auth.AccountSelectorView` | `cpp/app/MainWindow.qml` | done | account picker, offline profile controls, and Microsoft sign-in flyout |
-| `net.stratalauncher.ui.components.StatusIndicator` | `cpp/ui/components/StatusIndicator` | todo | green/blue/grey/red process state indicator |
-| `net.stratalauncher.ui.content.ContentView` | `cpp/app/MainWindow.qml` + `cpp/ui/content/ContentController` | done | asynchronous content browser and install workflow |
-| `net.stratalauncher.ui.install.InstallingView` | `cpp/ui/install/InstallingView` | todo | install progress overlay and per-item download message |
-| `net.stratalauncher.ui.instances.InstanceListView` | `cpp/ui/instances/InstanceListView` | todo | list view, selection, launch, and instance cards |
-| `net.stratalauncher.ui.instances.RunningInstanceView` | `cpp/ui/instances/RunningInstanceView` | todo | running game view and console/logs panel |
-| `net.stratalauncher.ui.server.ServerConsoleView` | `cpp/app/MainWindow.qml`, `cpp/core/server/ServerProcess` | done | live server console, commands, and output history |
-| `net.stratalauncher.ui.server.ServerPanelView` | `cpp/app/MainWindow.qml`, `cpp/core/server/DevServerManager` | done | server inventory, lifecycle, settings, and resource state |
-| `net.stratalauncher.ui.settings.InstanceSettingsView` | `cpp/ui/settings/InstanceSettingsController` and `cpp/app/MainWindow.qml` | done | asynchronous per-instance options, servers, Java flags, and runtime editing; interactive key capture remains a known gap |
+| `net.stratalauncher.ui.AnimationBenchmark` | `electron/renderer/src/components/FrameTimeOverlay.tsx` | done | frame-swap timing readout ported to the React FPS overlay; the standalone benchmark harness was a Java dev utility and is intentionally not ported (recorded deviation) |
+| `net.stratalauncher.ui.ButtonMotion` | `electron/renderer/src/components/InstanceCard.tsx`, `motion/button` | done | button and instance-card hover/click motion |
+| `net.stratalauncher.ui.PageTransition` | `electron/renderer/src/components/AppLayout.tsx`, `theme/motion.ts` | done | page-switch fade and horizontal movement |
+| `net.stratalauncher.ui.FlyoutManager` | `electron/renderer/src/components/Flyout.tsx` + `stores/ui.ts` | done | reusable overlay/flyout shell (beUI center-morph) and cross-page dialog state |
+| `net.stratalauncher.ui.FrameTimeOverlay` | `electron/renderer/src/components/FrameTimeOverlay.tsx` | done | frame-swap timing statistics and debug overlay |
+| `net.stratalauncher.ui.IconAssets` | `electron/renderer/src/components/Icon.tsx` (Material Symbols font) | done | bundled SVG lookup and correct theme/color pairing |
+| `net.stratalauncher.ui.MainLayout` | `electron/renderer/src/components/AppLayout.tsx` | done | shell, navigation, Home/About, and window state |
+| `net.stratalauncher.ui.MotionConstants` | `electron/renderer/src/theme/motion.ts` | done | centralized motion durations, curves, and reduce-motion behavior |
+| `net.stratalauncher.ui.StartupOverlay` | `electron/renderer/src/components/StartupOverlay.tsx` | done | animated splash, warning, copyright, and initialization wait |
+| `net.stratalauncher.ui.ThemeManager` | `cpp/core/settings/ThemeSettings.*` + `electron/renderer/src/stores/appearance.ts` | done | persisted appearance settings and shared radius tokens |
+| `net.stratalauncher.ui.ToggleSwitchStyle` | `electron/renderer/src/components/motion/switch.tsx` + `controls.tsx` | done | custom switch track, thumb, label placement, and motion |
+| `net.stratalauncher.ui.UiTypography` | `electron/renderer/src/index.css` `@font-face` (bundled DM Sans/Outfit/JetBrains Mono/Material Symbols) | done | bundled font loading and application typography |
+| `net.stratalauncher.ui.auth.AccountSelectorView` | `electron/renderer/src/components/AccountsFlyout.tsx` | done | account picker, offline profile controls, and Microsoft sign-in flyout |
+| `net.stratalauncher.ui.components.StatusIndicator` | `electron/renderer/src/components/StatusLight.tsx` | done | green/blue/grey/red process state indicator driven by launch.status events |
+| `net.stratalauncher.ui.content.ContentView` | `electron/renderer/src/pages/ContentPage.tsx` + `cpp/core/controllers/content/ContentController` | done | asynchronous content browser and install workflow |
+| `net.stratalauncher.ui.install.InstallingView` | `electron/renderer/src/components/InstallOverlay.tsx` | done | install progress overlay and per-item download message (parity strings preserved) |
+| `net.stratalauncher.ui.instances.InstanceListView` | `electron/renderer/src/pages/InstancesPage.tsx` + `components/InstanceCard.tsx` | done | list view, selection, launch, and instance cards |
+| `net.stratalauncher.ui.instances.RunningInstanceView` | `electron/renderer/src/components/ConsolePanel.tsx` | done | running game view and console/logs panel |
+| `net.stratalauncher.ui.server.ServerConsoleView` | `electron/renderer/src/pages/ServersPage.tsx` + `cpp/core/server/ServerProcess` | done | live server console, commands, and output history |
+| `net.stratalauncher.ui.server.ServerPanelView` | `electron/renderer/src/pages/ServersPage.tsx` + `cpp/core/server/DevServerManager` | done | server inventory, lifecycle, settings, and resource state |
+| `net.stratalauncher.ui.settings.InstanceSettingsView` | `electron/renderer/src/components/InstanceSettingsFlyout.tsx` + `cpp/core/controllers/instance/InstanceSettingsController` | done | asynchronous per-instance options, servers, Java flags, and runtime editing; interactive key capture remains a known gap |
 
 ## Coverage notes
 
@@ -123,3 +123,18 @@ M9 preserves tracked-only removal, Modrinth SHA-1 verification, loader/Minecraft
 M11 implements Vanilla, Paper, and Fabric server installation and lifecycle, with EULA persistence, server properties editing, asynchronous console output, runtime ownership protection, and resource monitoring. M12 adds server-side Modrinth plugin/mod browsing and installation; live online installs were not independently exercised.
 
 M12 ports global preferences to Java-compatible `settings.json`; stored account tokens are intentionally not migrated and users must sign in again. VSync changes apply after restart. The Qt startup entrance uses a centered scale-only animation; unlike Java, it omits the 10px vertical translation to keep the splash content centered throughout. The user confirmed M12 complete. The frame-time overlay was not separately verified in the GUI.
+
+## E0 pivot notes (Electron + React)
+
+- The Qt Quick frontend moved from `cpp/app` + `cpp/ui` to `cpp/legacy-qml/` unchanged in behavior; it still builds as the `stratalauncher` fallback target. `cpp/core/` remains headless (Qt Core/Network/WebSockets only).
+- New `strata-core serve` daemon (`cpp/app`) exposes the JSON-RPC 2.0 surface over loopback WebSocket. Deviation: the contract's token is enforced via an explicit `ipc.authenticate` handshake request after connect (the token travels only inside the Electron main process, never to page JS).
+- IPC skeleton methods: `ipc.authenticate`, `ping`, `version`, `launcher.getState`, `shutdown`. Server-push events are coalesced on a ~75 ms timer with latest-wins dedupe per method.
+- Electron client lives in `electron/` (electron-vite: `main/`, `preload/`, `renderer/`, `shared/`). Renderer reaches the core only through the typed `window.strata` contextBridge proxy (`contextIsolation`, `nodeIntegration: false`, `sandbox: true`).
+- UI parity rows previously marked "done" for QML now track the React equivalents; React implementations begin in E2+.
+
+## E7 packaging notes (Electron)
+
+- Packaging: `electron-builder` (`electron/electron-builder.yml`) bundles `out/` plus a self-contained `strata-core` bundle assembled by `scripts/deploy-core-bundle.{sh,ps1}` / `deploy-core-bundle-mac.sh` — the binary's shared-library closure (minus glibc/loader) and the Qt TLS + networkinformation plugins are copied next to it; Linux uses a wrapper script for `LD_LIBRARY_PATH` + `qt.conf`, Windows/macOS rely on same-dir DLLs / `windeployqt` / `macdeployqt` respectively. Electron main resolves the bundle at `resources/strata-core/strata-core[.exe]` when `app.isPackaged`; the `STRATA_READY` handshake is unchanged and smoke-tested in CI.
+- Qt fallback decision: `cpp/legacy-qml/` is **kept buildable** as the `stratalauncher` target (still compiled by the presets and covered by `cpp/tests`) but receives no further development; removal is deferred until the Electron client has shipped a stable release.
+- CI: `.github/workflows/electron.yml` (dispatch `platform=windows|linux|macos|all`) builds the release core + renderer per OS, assembles the bundle, runs `ctest` + `npm test` + typecheck, packages with electron-builder, smoke-tests the `STRATA_READY` handshake, and uploads `dist/electron` artifacts. The legacy `.github/workflows/verify.yml` (Qt/QML app) is retained for the fallback target.
+- Licensing: `LICENSE` (GPL-3.0), `LICENSES/`, and `THIRD_PARTY_NOTICES` ship in every artifact via electron-builder `files`; the notices file now includes the npm production-dependency audit section. Repo-wide SPDX header retrofit is tracked as a known gap (headers added to files introduced in E7).

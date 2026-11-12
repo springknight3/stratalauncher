@@ -176,6 +176,22 @@ namespace strata
         return instance;
     }
 
+    Instance InstanceManager::import(const QString& name, const QString& versionId,
+                                     const QString& sourceGameDirectory) const
+    {
+        const Instance instance = create(name, versionId);
+        try
+        {
+            copyTree(sourceGameDirectory, instance.gameDirectory());
+        }
+        catch (...)
+        {
+            deleteTree(instance.directory);
+            throw;
+        }
+        return instance;
+    }
+
     Instance InstanceManager::duplicate(const Instance& source, const QString& newName) const
     {
         const Instance storedSource = requireStoredInstance(source.id);

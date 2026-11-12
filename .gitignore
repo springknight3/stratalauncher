@@ -97,3 +97,32 @@ build/
 
 # Release artifacts
 dist/
+*.AppImage
+*.dmg
+*.AppDir
+*.snap
+
+# Electron packaging leftovers
+electron-builder-effective-config.yaml
+electron-builder.yml.bak
+
+# Gradle (legacy Java build)
+.gradle/
+gradle-app.setting
+gradle/*.lockfile
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Electron / Node
+node_modules/
+electron/out/
+electron/dist/

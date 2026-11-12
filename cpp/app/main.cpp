@@ -1,245 +1,141 @@
-#include <QDir>
-#include <QElapsedTimer>
-#include <QFile>
-#include <QFontDatabase>
-#include <QGuiApplication>
-#include <QQmlApplicationEngine>
-#include <QQmlContext>
-#include <QQuickStyle>
-#include <QQuickWindow>
-#include <QSurfaceFormat>
-#include <QTextStream>
-#include <QUrl>
-#include <QVariantList>
+// strata-core: headless launcher daemon. `strata-core serve` runs the
+// JSON-RPC 2.0 IPC server consumed by the Electron client.
 
-#include <algorithm>
-#include <cmath>
+#include <QCommandLineParser>
+#include <QCoreApplication>
+#include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QRandomGenerator>
+#include <QTextStream>
+
 #include <iostream>
-#include <numeric>
 #include <string_view>
 
-#include "LauncherController.h"
 #include "Paths.h"
-#include "ThemeSettings.h"
+#include "ipc/ControllerIpc.h"
+#include "ipc/IpcServer.h"
 #include "logging/LauncherLogging.h"
 
 namespace
 {
-    QString graphicsApiName()
+    void printVersion()
     {
-        switch (QQuickWindow::graphicsApi())
-        {
-        case QSGRendererInterface::Null:
-            return QStringLiteral("Null");
-        case QSGRendererInterface::OpenGL:
-            return QStringLiteral("OpenGL");
-        case QSGRendererInterface::Vulkan:
-            return QStringLiteral("Vulkan");
-        case QSGRendererInterface::Direct3D11:
-            return QStringLiteral("Direct3D11");
-        case QSGRendererInterface::Metal:
-            return QStringLiteral("Metal");
-        case QSGRendererInterface::Software:
-            return QStringLiteral("Software");
-        default:
-            return QStringLiteral("Unknown");
-        }
+        std::cout << "strata-core " << STRATA_VERSION << '\n';
     }
 
-    void loadFont(const QString& path, const QString& label)
+    QString generateToken()
     {
-        const int fontId = QFontDatabase::addApplicationFont(path);
-        if (fontId == -1)
+        // 256 bits of CSPRNG output, hex-encoded for the --token argument.
+        QString token;
+        token.reserve(64);
+        for (int i = 0; i < 8; ++i)
         {
-            qWarning().noquote() << "Unable to load" << label << "from" << path;
-            return;
+            const quint32 value = QRandomGenerator::system()->generate();
+            token += QString::number(value, 16).rightJustified(8, QLatin1Char('0'));
         }
-
-        const auto familyNames = QFontDatabase::applicationFontFamilies(fontId);
-        if (!familyNames.isEmpty())
-        {
-            qInfo().noquote() << "Loaded font family:" << familyNames.constFirst() << "(" << label
-                              << ")";
-        }
-    }
-} // namespace
-
-namespace
-{
-    void runBenchMode(const QStringList& args)
-    {
-        QString label = QStringLiteral("default");
-        for (const QString& arg : args)
-        {
-            if (arg.startsWith(QStringLiteral("--bench=")))
-            {
-                label = arg.mid(QStringLiteral("--bench=").size());
-            }
-        }
-        if (label.isEmpty())
-        {
-            label = QStringLiteral("default");
-        }
-
-        const QString benchDir = QStringLiteral("build/bench");
-        QDir dir;
-        if (!dir.mkpath(benchDir))
-        {
-            qWarning().noquote() << "Unable to create bench directory" << benchDir;
-        }
-
-        QList<int> timings;
-        for (int i = 0; i < 15; ++i)
-        {
-            QElapsedTimer timer;
-            timer.start();
-            for (int j = 0; j < 250000; ++j)
-            {
-                QString value = QStringLiteral("instance-%1").arg(j % 17);
-                value.replace(QStringLiteral("-"), QStringLiteral("/"));
-                Q_UNUSED(value)
-            }
-            timings.append(static_cast<int>(timer.nsecsElapsed() / 1000000));
-        }
-
-        std::sort(timings.begin(), timings.end());
-        const int size = static_cast<int>(timings.size());
-        const int avg =
-            (size == 0) ? 0 : (std::accumulate(timings.begin(), timings.end(), 0) / size);
-        const int p95Index =
-            std::clamp(static_cast<int>(std::ceil(0.95 * size)) - 1, 0, std::max(0, size - 1));
-        const int p95 = timings.at(p95Index);
-        const int max = timings.isEmpty() ? 0 : timings.last();
-        const int slowFrames =
-            std::count_if(timings.begin(), timings.end(), [](int ms) { return ms > 16; });
-        const double percentSlow =
-            timings.isEmpty()
-                ? 0.0
-                : (static_cast<double>(slowFrames) / static_cast<double>(size)) * 100.0;
-
-        const QString path = QStringLiteral("%1/qt-%2.md").arg(benchDir, label);
-        QFile bench(path);
-        if (!bench.open(QIODevice::WriteOnly | QIODevice::Text))
-        {
-            qCritical() << "Unable to write benchmark file" << path;
-            return;
-        }
-        QTextStream out(&bench);
-        out << "# Qt benchmark report\n\n";
-        out << "- label: " << label << "\n";
-        out << "- avg ms: " << avg << "\n";
-        out << "- p95 ms: " << p95 << "\n";
-        out << "- max ms: " << max << "\n";
-        out << "- frames over 16.6 ms: " << qSetFieldWidth(0) << percentSlow << "%\n";
-        out << "- setup ms: 8\n";
-        bench.close();
-
-        qInfo().noquote() << "Benchmark written to" << path;
+        return token;
     }
 } // namespace
 
 int main(int argc, char* argv[])
 {
-    bool smokeTest = false;
+    QCoreApplication app(argc, argv);
+    QCoreApplication::setApplicationName(QStringLiteral("strata-core"));
+    QCoreApplication::setApplicationVersion(QStringLiteral(STRATA_VERSION));
+    QCoreApplication::setOrganizationName(QStringLiteral("StrataLauncher"));
+    QCoreApplication::setOrganizationDomain(QStringLiteral("stratalauncher.net"));
+
     for (int index = 1; index < argc; ++index)
     {
         if (std::string_view(argv[index]) == "--version")
         {
-            std::cout << "StrataLauncher " << STRATA_VERSION << '\n';
+            printVersion();
             return 0;
         }
-        smokeTest = smokeTest || std::string_view(argv[index]) == "--smoke-test";
     }
 
-    if (smokeTest && qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
+    QCommandLineParser parser;
+    parser.setApplicationDescription(
+        QStringLiteral("StrataLauncher headless core daemon"));
+    parser.addHelpOption();
+    parser.addVersionOption();
+
+    QCommandLineOption portOption({QStringLiteral("p"), QStringLiteral("port")},
+                                  QStringLiteral("TCP port to listen on (0 = ephemeral)."),
+                                  QStringLiteral("port"), QStringLiteral("0"));
+    QCommandLineOption tokenOption({QStringLiteral("t"), QStringLiteral("token")},
+                                   QStringLiteral("Per-session IPC auth token."),
+                                   QStringLiteral("token"));
+    QCommandLineOption dataDirOption(
+        {QStringLiteral("d"), QStringLiteral("data-dir")},
+        QStringLiteral("Launcher data directory (default: platform app-data dir). "
+                       "'~' expands to the user home directory."),
+        QStringLiteral("path"));
+    parser.addOption(portOption);
+    parser.addOption(tokenOption);
+    parser.addOption(dataDirOption);
+    parser.addPositionalArgument(QStringLiteral("command"),
+                                 QStringLiteral("Subcommand (serve)."));
+    parser.process(app);
+
+    const QString command = parser.positionalArguments().value(0);
+    if (command != QStringLiteral("serve"))
     {
-        qputenv("QT_QPA_PLATFORM", "offscreen");
+        QTextStream(stderr) << "Usage: strata-core serve [--port N] [--token T] [--data-dir PATH]\n";
+        return command.isEmpty() ? 1 : 0;
     }
 
-    QGuiApplication app(argc, argv);
-    QQuickStyle::setStyle(QStringLiteral("Basic"));
-    app.setApplicationName(QStringLiteral("StrataLauncher"));
-    app.setApplicationVersion(QStringLiteral(STRATA_VERSION));
-    app.setOrganizationName(QStringLiteral("StrataLauncher"));
-    app.setOrganizationDomain(QStringLiteral("stratalauncher.net"));
+    const QString dataDir = parser.value(dataDirOption);
+    if (!dataDir.isEmpty())
+    {
+        QString expanded = dataDir;
+        if (expanded == QStringLiteral("~") || expanded.startsWith(QStringLiteral("~/")))
+        {
+            expanded = QDir::homePath() + expanded.mid(1);
+        }
+        strata::Paths::setDataDirectoryOverride(expanded);
+    }
 
-    const QStringList args = app.arguments();
     QString loggingError;
-    if (!smokeTest &&
-        !strata::LauncherLogging::configure(strata::Paths::dataDirectory(), &loggingError))
+    if (!strata::LauncherLogging::configure(strata::Paths::dataDirectory(), &loggingError))
     {
-        qWarning().noquote() << loggingError;
+        QTextStream(stderr) << loggingError << '\n';
     }
 
-    bool debugFrameTime = false;
-    bool benchMode = false;
-    for (const QString& arg : args)
+    QString token = parser.value(tokenOption);
+    if (token.isEmpty())
     {
-        if (arg == QStringLiteral("--debug-frame-time") || arg == QStringLiteral("--debug-frame"))
-        {
-            debugFrameTime = true;
-        }
-        if (arg == QStringLiteral("--bench") || arg.startsWith(QStringLiteral("--bench=")))
-        {
-            benchMode = true;
-        }
+        token = generateToken();
     }
 
-    if (benchMode)
+    strata::ipc::IpcServer server;
+    server.setAuthToken(token);
+    server.setServerInfo(QStringLiteral("strata-core"), QStringLiteral(STRATA_VERSION));
+    QObject::connect(&server, &strata::ipc::IpcServer::shutdownRequested, &app,
+                     &QCoreApplication::quit);
+
+    // Bind the controller invokable surface and NOTIFY signals to IPC.
+    strata::ipc::ControllerIpc controllerIpc(server);
+
+    QString listenError;
+    if (!server.listen(parser.value(portOption).toUShort(), &listenError))
     {
-        runBenchMode(args);
-        return 0;
+        QTextStream(stderr) << "Failed to listen: " << listenError << '\n';
+        return 1;
     }
 
-    const bool forcedDebugFrameTime = debugFrameTime;
-    ThemeSettings themeSettings;
-    QSurfaceFormat surfaceFormat = QSurfaceFormat::defaultFormat();
-    surfaceFormat.setSwapInterval(themeSettings.vsyncEnabled() ? 1 : 0);
-    QSurfaceFormat::setDefaultFormat(surfaceFormat);
-    strata::ui::LauncherController launcherController;
-    debugFrameTime = debugFrameTime || themeSettings.frameTimeOverlayEnabled();
-    loadFont(QStringLiteral(":/assets/fonts/DMSans-VariableFont_opsz,wght.ttf"),
-             QStringLiteral("DM Sans"));
-    loadFont(QStringLiteral(":/assets/fonts/Outfit-VariableFont_wght.ttf"),
-             QStringLiteral("Outfit"));
-    loadFont(QStringLiteral(":/assets/fonts/JetBrainsMono-VariableFont_wght.ttf"),
-             QStringLiteral("JetBrains Mono"));
+    // Exactly one machine-readable line on stdout; all diagnostics stay on stderr.
+    const QJsonObject ready{
+        {QStringLiteral("port"), server.serverPort()},
+        {QStringLiteral("token"), token},
+    };
+    std::cout << "STRATA_READY "
+              << QJsonDocument(ready).toJson(QJsonDocument::Compact).constData() << '\n';
+    std::cout.flush();
 
-    qInfo().noquote() << "Qt version:" << qVersion();
-    qInfo().noquote() << "Platform plugin:" << QGuiApplication::platformName();
-    qInfo().noquote() << "Graphics backend:" << graphicsApiName();
-    qInfo().noquote() << "Effective theme:" << themeSettings.theme();
-    qInfo().noquote() << "VSync enabled:" << themeSettings.vsyncEnabled();
-    qInfo().noquote() << "Frame-time overlay enabled:" << debugFrameTime;
-
-    QQmlApplicationEngine engine;
-    engine.rootContext()->setContextProperty(QStringLiteral("ThemeSettings"), &themeSettings);
-    engine.rootContext()->setContextProperty(QStringLiteral("LauncherController"),
-                                             &launcherController);
-    engine.rootContext()->setContextProperty(QStringLiteral("AppDebugFrameTime"), debugFrameTime);
-    engine.rootContext()->setContextProperty(QStringLiteral("AppDebugFrameTimeForced"),
-                                             forcedDebugFrameTime);
-    engine.rootContext()->setContextProperty(QStringLiteral("AppVersion"),
-                                             QCoreApplication::applicationVersion());
-    engine.addImportPath(QStringLiteral("qrc:/qml"));
-    engine.load(QUrl(QStringLiteral("qrc:/qml/MainWindow.qml")));
-
-    if (engine.rootObjects().isEmpty())
-    {
-        qCritical() << "Failed to load the main QML window.";
-        return -1;
-    }
-
-    auto* rootWindow = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
-    if (rootWindow != nullptr)
-    {
-        rootWindow->setTitle(QStringLiteral("StrataLauncher"));
-    }
-
-    if (smokeTest)
-    {
-        return 0;
-    }
+    qInfo().noquote() << "strata-core" << STRATA_VERSION << "listening on 127.0.0.1:"
+                      << server.serverPort();
 
     return app.exec();
 }

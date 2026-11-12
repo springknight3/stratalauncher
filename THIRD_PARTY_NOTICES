@@ -24,3 +24,36 @@ This project bundles and links against third-party libraries:
    Licensed under Apache License 2.0.
 
 See the LICENSES/ directory for the full text of all included licenses.
+
+Electron / React client (shipped in the renderer and main process)
+=================================================================
+
+The desktop client is built with Electron and React. The following npm
+packages are bundled into the application (production dependencies only;
+development tooling such as electron-builder, Vite, TypeScript, and Vitest is
+not shipped):
+
+- Electron — MIT License — https://www.electronjs.org/
+- React, ReactDOM — MIT License — https://react.dev/
+- React Router — MIT License — https://reactrouter.com/
+- Vite — MIT License — https://vite.dev/
+- Tailwind CSS — MIT License — https://tailwindcss.com/
+- Zustand — MIT License — https://zustand.docs.pmnd.rs/
+- Framer Motion / Motion — MIT License — https://motion.dev/
+- animejs — MIT License — https://animejs.com/
+- MiniSearch — MIT License — https://lucaong.github.io/minisearch/
+- clsx — MIT License
+- tailwind-merge — MIT License
+- lucide-react — ISC License
+- @floating-ui/dom — MIT License
+- @paper-design/shaders-react — Apache License 2.0
+- @supabase/supabase-js — MIT License (deferred module; not yet exercised)
+
+Chromium (bundled inside Electron) is licensed under a combination of BSD,
+MIT, LGPL, and other permissive licenses; see
+https://www.electronjs.org/docs/latest/development/third-party-notices or the
+Electron distribution's LICENSES.chromium.html.
+
+npm license audit: run `cd electron && npm ls --omit=dev --all` and inspect
+each package's LICENSE file; the list above was generated from the resolved
+production dependency tree at packaging time.

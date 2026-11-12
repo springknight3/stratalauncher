@@ -1,21 +1,22 @@
-add_executable(strata_tests
-    LauncherQtTests.cpp
-    ../app/resources.qrc
-)
+if(STRATA_BUILD_LEGACY_QML)
+    add_executable(strata_tests
+        LauncherQtTests.cpp
+        ../legacy-qml/resources.qrc
+    )
 
-target_link_libraries(strata_tests
-    PRIVATE
-        strata_core
-        strata_ui
-        Qt6::Core
-        Qt6::Gui
-        Qt6::Qml
-        Qt6::Quick
-        Qt6::QuickControls2
-        Qt6::Test
-)
+    target_link_libraries(strata_tests
+        PRIVATE
+            strata_core
+            Qt6::Core
+            Qt6::Gui
+            Qt6::Qml
+            Qt6::Quick
+            Qt6::QuickControls2
+            Qt6::Test
+    )
 
-add_test(NAME strata_tests COMMAND strata_tests)
+    add_test(NAME strata_tests COMMAND strata_tests)
+endif()
 
 add_executable(strata_m3_tests
     M3CoreTests.cpp
@@ -133,7 +134,6 @@ add_executable(strata_m10_tests
 target_link_libraries(strata_m10_tests
     PRIVATE
         strata_core
-        strata_ui
         Qt6::Core
         Qt6::Test
 )
@@ -158,3 +158,18 @@ target_link_libraries(strata_m11_tests
 
 add_dependencies(strata_m11_tests strata_process_fixture)
 add_test(NAME strata_m11_tests COMMAND strata_m11_tests)
+
+add_executable(strata_ipc_tests
+    IpcDispatcherTests.cpp
+)
+
+target_link_libraries(strata_ipc_tests
+    PRIVATE
+        strata_core
+        Qt6::Core
+        Qt6::Network
+        Qt6::WebSockets
+        Qt6::Test
+)
+
+add_test(NAME strata_ipc_tests COMMAND strata_ipc_tests)

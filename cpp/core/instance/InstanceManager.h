@@ -16,6 +16,10 @@ namespace strata
         QString instancesDirectory() const;
         QList<Instance> listInstances() const;
         Instance create(const QString& name, const QString& versionId) const;
+        // Creates a new instance and copies an existing game directory into it.
+        // Used by launcher import (official/Prism/SKLauncher/CurseForge).
+        Instance import(const QString& name, const QString& versionId,
+                        const QString& sourceGameDirectory) const;
         Instance duplicate(const Instance& source, const QString& newName) const;
         Instance rename(const Instance& instance, const QString& newName) const;
         Instance setFavorite(const Instance& instance, bool favorite) const;

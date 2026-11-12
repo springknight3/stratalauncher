@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws://127.0.0.1:* http://127.0.0.1:*"
+    />
+    <title>StrataLauncher</title>
+    <style>
+      /* Pre-React boot splash: paints before any script/CSS bundle loads so the
+         window never shows a bare black frame. Removed by main.tsx on mount;
+         StartupOverlay takes over seamlessly. */
+      html,
+      body {
+        margin: 0;
+        background: hsl(240 10% 4%);
+      }
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        font-family: system-ui, sans-serif;
+        color: hsl(0 0% 98%);
+      }
+      #boot-splash .wordmark {
+        font-size: 48px;
+        font-weight: 700;
+        letter-spacing: 0.35em;
+        text-indent: 0.35em;
+      }
+      #boot-splash .subtitle {
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.5em;
+        text-indent: 0.5em;
+        text-transform: uppercase;
+        color: hsl(217 91% 60%);
+      }
+      #boot-splash .dots {
+        display: flex;
+        gap: 6px;
+        margin-top: 28px;
+      }
+      #boot-splash .dots span {
+        width: 7px;
+        height: 7px;
+        border-radius: 9999px;
+        background: currentColor;
+        opacity: 0.5;
+        animation: boot-dot 1.2s ease-in-out infinite;
+      }
+      #boot-splash .dots span:nth-child(2) {
+        animation-delay: 0.16s;
+      }
+      #boot-splash .dots span:nth-child(3) {
+        animation-delay: 0.32s;
+      }
+      @keyframes boot-dot {
+        0%,
+        100% {
+          opacity: 0.4;
+          transform: translateY(0);
+        }
+        50% {
+          opacity: 1;
+          transform: translateY(-4px);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash .dots span {
+          animation: none;
+          opacity: 0.8;
+        }
+      }
+    </style>
+    <link
+      rel="preload"
+      href="/src/assets/fonts/DMSans-VariableFont_opsz,wght.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/src/assets/fonts/Outfit-VariableFont_wght.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/src/assets/fonts/JetBrainsMono-VariableFont_wght.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+  </head>
+  <body>
+    <div id="boot-splash" aria-hidden="true">
+      <div class="wordmark">STRATA</div>
+      <div class="subtitle">Minecraft Launcher</div>
+      <div class="dots"><span></span><span></span><span></span></div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

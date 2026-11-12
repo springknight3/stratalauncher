@@ -10,11 +10,21 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Test Network)
+# The frozen Qt Quick frontend is kept as a buildable fallback. Disable with
+# -DSTRATA_BUILD_LEGACY_QML=OFF for a headless strata-core-only build (note:
+# the Qt-era test binaries that exercise QML still require the Qml components).
+option(STRATA_BUILD_LEGACY_QML "Build the frozen Qt Quick fallback UI" ON)
+
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Network Test WebSockets)
+if(STRATA_BUILD_LEGACY_QML)
+    find_package(Qt6 6.8 REQUIRED COMPONENTS Gui Qml Quick QuickControls2)
+endif()
 qt_policy(SET QTP0001 NEW)
 include(CTest)
 
 add_subdirectory(core)
-add_subdirectory(ui)
+if(STRATA_BUILD_LEGACY_QML)
+    add_subdirectory(legacy-qml)
+endif()
 add_subdirectory(app)
 add_subdirectory(tests)

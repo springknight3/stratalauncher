@@ -94,7 +94,7 @@ case "$platform" in
             QMAKE="$qmake_path" \
             EXTRA_QT_MODULES=svg \
             EXTRA_PLATFORM_PLUGINS="$wayland_plugins_csv;libqoffscreen.so" \
-            QML_SOURCES_PATHS="$root_dir/cpp/app" \
+            QML_SOURCES_PATHS="$root_dir/cpp/legacy-qml" \
                 linuxdeploy --appdir "$appdir" \
                 -e "$appdir/usr/bin/stratalauncher" \
                 --desktop-file "$root_dir/packaging/stratalauncher.desktop" \

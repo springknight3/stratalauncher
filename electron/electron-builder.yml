@@ -1,0 +1,66 @@
+appId: com.stratalauncher.app
+productName: StrataLauncher
+copyright: Copyright © StrataLauncher contributors
+
+directories:
+  output: ../dist/electron
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+extraResources:
+  # Populated by scripts/deploy-core-bundle.sh before packaging.
+  - from: ../dist/strata-core-bundle
+    to: strata-core
+    filter:
+      - '**/*'
+  # GPL compliance: license texts ship inside every artifact.
+  - from: ../LICENSE
+    to: licenses/LICENSE
+  - from: ../THIRD_PARTY_NOTICES
+    to: licenses/THIRD_PARTY_NOTICES
+  - from: ../LICENSES
+    to: licenses/LICENSES
+
+asar: true
+
+linux:
+  icon: build/icon.png
+  category: Game
+  syncDesktopName: true
+  synopsis: 'A cross-platform custom Minecraft: Java Edition launcher'
+  description: >-
+    StrataLauncher is a hobby Minecraft launcher pairing a headless C++ core
+    daemon with an Electron + React desktop client.
+  maintainer: StrataLauncher contributors
+  target:
+    - AppImage
+    - tar.gz
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
+
+mac:
+  icon: build/icon.png
+  category: public.app-category.games
+  target:
+    - dmg
+    - zip
+  artifactName: ${productName}-${version}-macos-${arch}.${ext}
+  # Hardened-runtime entitlements are not required: the app spawns no helpers
+  # beyond the bundled core binary and uses no restricted APIs.
+  extendInfo:
+    NSHighResolutionCapable: true
+
+win:
+  icon: build/icon.ico
+  target:
+    - nsis
+    - zip
+  artifactName: ${productName}-${version}-windows-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
