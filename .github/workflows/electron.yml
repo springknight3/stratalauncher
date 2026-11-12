@@ -64,6 +64,7 @@ jobs:
           host: ${{ matrix.qt-host }}
           target: ${{ matrix.qt-target }}
           arch: ${{ matrix.qt-arch }}
+          modules: qtwebsockets
           cache: true
 
       - name: Locate Qt prefix
@@ -136,6 +137,7 @@ jobs:
         shell: bash
         run: >
           cmake --preset release
+          -DSTRATA_BUILD_LEGACY_QML=OFF
           -DCMAKE_PREFIX_PATH="$QT_PREFIX;$KEYCHAIN_PREFIX;$KEYCHAIN_PREFIX/ecm"
         env:
           KEYCHAIN_PREFIX: ${{ env.KEYCHAIN_PREFIX }}
