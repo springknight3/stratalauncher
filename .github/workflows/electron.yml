@@ -25,34 +25,34 @@ permissions:
   contents: write
 
 jobs:
+  setup:
+    name: Resolve platform matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - name: Build matrix from platform input
+        id: set
+        shell: bash
+        run: |
+          entries=""
+          add() { entries="${entries}${entries:+,}{$1}"; }
+          case "${{ inputs.platform }}" in
+            windows|all)
+              add '"platform":"windows","os":"windows-latest","qt-host":"windows","qt-target":"desktop","qt-arch":"win64_msvc2022_64","qt-dir":"msvc2022_64","eb-flag":"win"' ;;
+            linux|all)
+              add '"platform":"linux","os":"ubuntu-24.04","qt-host":"linux","qt-target":"desktop","qt-arch":"gcc_64","qt-dir":"gcc_64","eb-flag":"linux"' ;;
+            macos|all)
+              add '"platform":"macos","os":"macos-latest","qt-host":"mac","qt-target":"desktop","qt-arch":"macos","qt-dir":"macos","eb-flag":"mac"' ;;
+          esac
+          echo "matrix={\"include\":[$entries]}" >> "$GITHUB_OUTPUT"
+
   package:
+    needs: setup
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - platform: windows
-            os: windows-latest
-            qt-host: windows
-            qt-target: desktop
-            qt-arch: win64_msvc2022_64
-            qt-dir: msvc2022_64
-            eb-flag: win
-          - platform: linux
-            os: ubuntu-24.04
-            qt-host: linux
-            qt-target: desktop
-            qt-arch: gcc_64
-            qt-dir: gcc_64
-            eb-flag: linux
-          - platform: macos
-            os: macos-latest
-            qt-host: mac
-            qt-target: desktop
-            qt-arch: macos
-            qt-dir: macos
-            eb-flag: mac
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
-    if: inputs.platform == 'all' || inputs.platform == matrix.platform
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
